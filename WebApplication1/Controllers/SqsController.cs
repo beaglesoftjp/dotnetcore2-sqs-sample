@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Amazon.SQS;
 using Amazon.SQS.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -16,27 +17,28 @@ namespace WebApplication1.Controllers
         
         private readonly ILogger<SqsController> _logger;
         
-        private readonly AwsSqs _awsSqs;
+        private readonly SqsConfigParam _sqsConfigParam;
         private const string QueueName = "MySampleQueue";
+        private readonly AmazonSQSClient _client;
 
-        public SqsController(AwsSqs awsSqs, ILogger<SqsController> logger)
+        public SqsController(ILogger<SqsController> logger, SqsConfigParam sqsConfigParam, AmazonSQSClient client)
         {
-            _awsSqs = awsSqs;
+            _sqsConfigParam = sqsConfigParam;
             _logger = logger;
+            _client = client;
         }
 
         [HttpPost("create")]
         public async Task<string> CreateMessage([FromBody] string message)
         {
-            var queue = await _awsSqs.GetQueueUrlAsync(QueueName);
+            var queue = await QueueUrl.Build(_client,QueueName, _sqsConfigParam.QueueAttributes);
             var request = new SendMessageRequest
             {
                 QueueUrl = queue.Value,
                 MessageBody = message
             };
 
-            var client = _awsSqs.Client;
-            var response = await client.SendMessageAsync(request);
+            var response = await _client.SendMessageAsync(request);
 
             if (response.HttpStatusCode == HttpStatusCode.OK)
             {
@@ -64,7 +66,7 @@ namespace WebApplication1.Controllers
         [HttpPost("batchcreate")]
         public async Task<string> CreateMessages([FromBody] string[] messages)
         {
-            var queueUrl = await _awsSqs.GetQueueUrlAsync(QueueName);
+            var queueUrl = await QueueUrl.Build(_client,QueueName, _sqsConfigParam.QueueAttributes);
             var sendMessageBatchRequest = new SendMessageBatchRequest
             {
                 Entries = messages
@@ -72,8 +74,7 @@ namespace WebApplication1.Controllers
                 QueueUrl = queueUrl.Value
             };
 
-            var client = _awsSqs.Client;
-            var response = await client.SendMessageBatchAsync(sendMessageBatchRequest);
+            var response = await _client.SendMessageBatchAsync(sendMessageBatchRequest);
             if (response.HttpStatusCode == HttpStatusCode.OK)
             {
                 var result = new
@@ -99,9 +100,9 @@ namespace WebApplication1.Controllers
         [HttpGet("receive")]
         public async Task<string> ReceiveMessages()
         {
-            var queueUrl = await _awsSqs.GetQueueUrlAsync(QueueName);
+            var queueUrl = await QueueUrl.Build(_client,QueueName, _sqsConfigParam.QueueAttributes);
             var receiveMessageRequest = new ReceiveMessageRequest {QueueUrl = queueUrl.Value};
-            var response = await _awsSqs.Client.ReceiveMessageAsync(receiveMessageRequest);
+            var response = await _client.ReceiveMessageAsync(receiveMessageRequest);
 
             if (response.HttpStatusCode == HttpStatusCode.OK)
             {
@@ -127,9 +128,9 @@ namespace WebApplication1.Controllers
         [HttpDelete("delete")]
         public async Task<IActionResult> DeleteMessage()
         {
-            var queueUrl = await _awsSqs.GetQueueUrlAsync(QueueName);
+            var queueUrl = await QueueUrl.Build(_client,QueueName, _sqsConfigParam.QueueAttributes);
             var receiveMessageRequest = new ReceiveMessageRequest {QueueUrl = queueUrl.Value};
-            var response = await _awsSqs.Client.ReceiveMessageAsync(receiveMessageRequest);
+            var response = await _client.ReceiveMessageAsync(receiveMessageRequest);
             
             var deleteResults = new List<dynamic>();
             foreach (var message in response.Messages)
@@ -142,7 +143,7 @@ namespace WebApplication1.Controllers
                     ReceiptHandle = message.ReceiptHandle
                 };
 
-                var deleteResponse = await _awsSqs.Client.DeleteMessageAsync(deleteRequest);
+                var deleteResponse = await _client.DeleteMessageAsync(deleteRequest);
                 if (deleteResponse.HttpStatusCode == HttpStatusCode.OK)
                 {
                     deleteResults.Add(new {MessageId = message.MessageId, Status = "success"});
