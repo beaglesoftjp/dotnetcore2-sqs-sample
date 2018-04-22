@@ -31,10 +31,10 @@ namespace WebApplication1.Controllers
         [HttpPost("create")]
         public async Task<string> CreateMessage([FromBody] string message)
         {
-            var queue = await QueueUrl.Build(_client,QueueName, _sqsConfigParam.QueueAttributes);
+            var queueUrl = await QueueUrl.Build(_client,QueueName, _sqsConfigParam.QueueAttributes);
             var request = new SendMessageRequest
             {
-                QueueUrl = queue.Value,
+                QueueUrl = queueUrl.Value,
                 MessageBody = message
             };
 
