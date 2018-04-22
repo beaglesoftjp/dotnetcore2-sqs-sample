@@ -41,7 +41,7 @@ namespace WebApplication1.Models
         /// <param name="queueName"></param>
         /// <param name="queueAttributes"></param>
         /// <returns></returns>
-        public static async Task<QueueUrl> Build(AmazonSQSClient client, string queueName,
+        public static async Task<QueueUrl> Build(IAmazonSQS client, string queueName,
             Dictionary<string, string> queueAttributes)
         {
             try
