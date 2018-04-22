@@ -30,7 +30,7 @@ namespace WebApplication1.Models
 
     public class QueueUrl : AwsUrl
     {
-        public QueueUrl(string url) : base(url)
+        private QueueUrl(string url) : base(url)
         {
         }
 
@@ -44,12 +44,6 @@ namespace WebApplication1.Models
         public static async Task<QueueUrl> Build(AmazonSQSClient client, string queueName,
             Dictionary<string, string> queueAttributes)
         {
-            var createQueueRequest = new CreateQueueRequest
-            {
-                QueueName = queueName,
-                Attributes = queueAttributes
-            };
-
             try
             {
                 var queueUrl = await client.GetQueueUrlAsync(queueName);
@@ -57,6 +51,11 @@ namespace WebApplication1.Models
             }
             catch (QueueDoesNotExistException ex)
             {
+                var createQueueRequest = new CreateQueueRequest
+                {
+                    QueueName = queueName,
+                    Attributes = queueAttributes
+                };
                 var queue = await client.CreateQueueAsync(createQueueRequest);
                 return new QueueUrl(queue.QueueUrl);
             }
